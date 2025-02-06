@@ -275,6 +275,7 @@ class PUSCHTransmitter(Layer):
         #         return x, b
         # else:
         #     if ret: # if return local outputs
+        
         #         return x, tx_lo
         #     else:
         #         return x
