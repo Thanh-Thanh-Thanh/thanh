@@ -14,6 +14,8 @@ import sionna
 from sionna.utils.metrics import count_errors, count_block_errors
 from sionna.mapping import Mapper, Constellation
 from sionna import signal
+import os
+from datetime import datetime
 
 # def reset_sionna():
 #     # Reload the main sionna package
@@ -36,6 +38,21 @@ from sionna import signal
 #     # importlib.reload(sionna.nr.PUSCHConfig)  # Specific submodule
 
 #     print("Sionna package and its submodules have been reset.")
+
+def create_timestamped_folders(base_path="/workspaces/sionna/data"):
+    # Get current date and time
+    now = datetime.now()
+    date_folder = now.strftime("%Y-%m-%d")
+    time_folder = now.strftime("%H-%M-%S")
+    
+    # Create full path
+    full_path = os.path.join(base_path, date_folder, time_folder)
+    
+    # Create directories
+    os.makedirs(full_path, exist_ok=True)
+    
+    print(f"Folder structure created: {full_path}")
+    return full_path
 
 
 def array_to_hash(arr, fileName='/tmp/txtFile.txt'):
@@ -641,7 +658,7 @@ def sim_ber(mc_fun,
         # copy replicas back to single device
         b = strategy.gather(outputs_rep[0], axis=0)
         b_hat = strategy.gather(outputs_rep[1], axis=0)
-        if length(outputs_rep) > 2: # thanhnb
+        if len(outputs_rep) > 2: # thanhnb
             x = strategy.gather(outputs_rep[2], axis=0)
             y = strategy.gather(outputs_rep[3], axis=0)
             return b, b_hat, x, y
@@ -789,9 +806,11 @@ def sim_ber(mc_fun,
                 #   thanhnb
                 b = outputs[0]
                 b_hat = outputs[1]
-                if length(outputs_rep) > 2: # thanhnb
-                    x = strategy.gather(outputs_rep[2], axis=0)
-                    y = strategy.gather(outputs_rep[3], axis=0)
+                if len(outputs) > 2: # thanhnb
+                    x = outputs[2]
+                    y = outputs[3]
+
+
           
                 
                 if soft_estimates:

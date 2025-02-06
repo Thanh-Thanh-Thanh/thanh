@@ -894,12 +894,12 @@ class PUSCHConfig(Config):
 
         return int(c_init)
 
-    def show(self):
+    def show(self, file=None):
         """Print all properties of the PUSCHConfig and children"""
-        self.carrier.show()
-        Config.show(self)
-        self.dmrs.show()
-        self.tb.show()
+        self.carrier.show(file)
+        Config.show(self, file)
+        self.dmrs.show(file)
+        self.tb.show(file)
 
     def check_config(self):
         """Test if the compound configuration is valid"""

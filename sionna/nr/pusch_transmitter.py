@@ -262,6 +262,7 @@ class PUSCHTransmitter(Layer):
         if 'x_pre' in ret:
             outputs.append(x_pre)
 
+        if len(outputs) == 1: return x
         return tuple(outputs)
         # tx_lo = {}
         # for r in ret:
