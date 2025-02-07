@@ -1,18 +1,18 @@
 Carrier Configuration
 =====================
 cyclic_prefix : normal
-cyclic_prefix_length : 2.8645833333333334e-06
+cyclic_prefix_length : 2.3437500000000002e-06
 frame_duration : 0.01
 frame_number : 0
 kappa : 64.0
 mu : 1
-n_cell_id : 1
+n_cell_id : 500
 n_size_grid : 273
 n_start_grid : 0
 num_slots_per_frame : 20
 num_slots_per_subframe : 2
 num_symbols_per_slot : 14
-slot_number : 0
+slot_number : 4
 sub_frame_duration : 0.001
 subcarrier_spacing : 30
 t_c : 5.086263020833334e-10
@@ -33,11 +33,11 @@ l_prime : [0]
 l_ref : 0
 mapping_type : A
 n : shape (12,)
-n_rnti : 1
+n_rnti : 2001
 n_size_bwp : 4
 n_start_bwp : 0
 num_antenna_ports : 1
-num_coded_bits : 2304
+num_coded_bits : 1152
 num_layers : 1
 num_ov : 0
 num_res_per_prb : 144
@@ -46,7 +46,7 @@ num_subcarriers : 48
 precoding : non-codebook
 precoding_matrix : None
 symbol_allocation : [0, 14]
-tb_size : 1256
+tb_size : 224
 tpmi : 0
 transform_precoding : False
 
@@ -72,10 +72,10 @@ w_t : [[1]
 Transport Block Configuration
 =============================
 channel_type : PUSCH
-mcs_index : 14
+mcs_index : 2
 mcs_table : 1
 n_id : 20
-num_bits_per_symbol : 4
-target_coderate : 0.5400390625
+num_bits_per_symbol : 2
+target_coderate : 0.1884765625
 tb_scaling : 1.0
 
