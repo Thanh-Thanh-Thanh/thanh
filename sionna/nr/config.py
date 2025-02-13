@@ -39,18 +39,18 @@ class Config(ABC):
     def check_config(self):
         pass
 
-    def show(self, file=None):
+    def show(self, fileId=None):
         """Print all properties of a configuration"""
         self.check_config()
-        print(self._name, file=file)
-        print("="*len(self._name), file=file)
+        print(self._name, file=fileId)
+        print("="*len(self._name), file=fileId)
         for a in dir(self):
             val = getattr(self, a)
             if a[0]!="_" and a not in ["show", "name", "check_config", \
                                        "check_config_precoded", "clone", \
                                        "c_init", "dmrs", "tb", "carrier"]:
                 if a in ["dmrs_grid", "dmrs_grid_precoded", "dmrs_mask", "n"]:
-                    print(f"{a} : shape {np.array(val).shape}", file=file)
+                    print(f"{a} : shape {np.array(val).shape}", file=fileId)
                 else:
-                    print(f"{a} : {val}", file=file)
-        print("\r", file=file)
+                    print(f"{a} : {val}", file=fileId)
+        print("\r", file=fileId)

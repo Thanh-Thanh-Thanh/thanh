@@ -199,16 +199,16 @@ class PUSCHTransmitter(Layer):
         """Aggregate pilot pattern of all transmitters"""
         return self._pilot_pattern
 
-    def show(self):
+    def show(self, fileId=None):
         """Print all properties of the PUSCHConfig and children"""
         # CarrierConfig is always the same
-        self._pusch_configs[0].carrier.show()
-        Config.show(self._pusch_configs[0])
+        self._pusch_configs[0].carrier.show(fileId)
+        Config.show(self._pusch_configs[0], fileId)
 
         for idx,p in enumerate(self._pusch_configs):
-            print(f"---- UE {idx} ----")
-            p.dmrs.show()
-            p.tb.show()
+            print(f"---- UE {idx} ----", file=fileId)
+            p.dmrs.show(fileId)
+            p.tb.show(fileId)
 
     def call(self, inputs, ret=[]):     # list of returned local outputs
 

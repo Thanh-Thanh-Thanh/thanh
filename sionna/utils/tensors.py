@@ -7,6 +7,15 @@
 import tensorflow as tf
 import sionna as sn
 
+b2b = lambda b_tensor: tf.math.reduce_sum(
+                                    tf.reshape(tf.pad(tf.cast(b_tensor,tf.uint8),
+                                                tf.constant([[0,0],[0,0],[0, (8 - (b_tensor.shape[2] % 8)) % 8]])),
+                                                [-1, 8]) 
+                                    * tf.constant([[128, 64, 32, 16, 8, 4, 2, 1]], dtype=tf.uint8),
+                                    axis=1)
+                                    
+f2f = lambda value: tf.cast((value * (2 ** 13)), tf.int16)
+
 def expand_to_rank(tensor, target_rank, axis=-1):
     """Inserts as many axes to a tensor as needed to achieve a desired rank.
 
