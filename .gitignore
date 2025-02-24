@@ -1,6 +1,8 @@
 .venv
 ABC
 ATest
+*.tar
+*.zip
 Dataset
 pyaerial
 .vscode/
