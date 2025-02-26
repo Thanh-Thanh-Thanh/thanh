@@ -1,4 +1,7 @@
-tensorflow >=2.13.0, <2.16.0
+tensorflow[and-cuda] >=2.13.0, <2.16.0
+tqdm
+pandas
+pyarrow
 numpy
 scipy >=1.6.0
 matplotlib >= 3.5.3
