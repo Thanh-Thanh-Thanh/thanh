@@ -17,27 +17,78 @@ from sionna import signal
 import os
 from datetime import datetime
 
-# def reset_sionna():
-#     # Reload the main sionna package
-#     importlib.reload(sionna)
+import re
+import math
+
+def config_parser(config_path):
+    caseInfo = {}
+    sysInfo = {}
+    ue = {}
+    chcfg = {}
+    auxInfo = {}
+    with open(config_path, 'r') as file:
+        for num, line in enumerate(file, 1):
+            line = line.strip()
+            if line and not line.startswith('%'):  # Ignore empty or comment lines
+                #read case information and store it in caseInfo
+                key, value = line.split('=')
+                key = key.strip()
+                value = value.strip('; ').strip()
+                if value.lower() == 'true': 
+                    value = True
+                elif value.lower() == 'false':
+                    value = False
+                elif value.isdigit():  # Convert to integer if the value is a number
+                    value = int(value)
+                if num < 3:
+                    caseInfo[key] = value    
+                else:
+                    #read cell information  
+                    if key.startswith('sys'):
+                        _, value2 = key.split('.')
+                        sysInfo[value2] = value
+                    #read chcfg information
+                    elif key.startswith('chcfg'): 
+                        _, value2 = key.split('.')
+                        chcfg[value2] = value
+                    #read ue config
+                    elif key.startswith('ue'): 
+                        key2, value2 = key.split('.')
+                        ue_idx = re.search(r"\{([^}]+)\}", key2)
+                        ue_idx = ue_idx.group(1)
+                        if ue_idx.isdigit():
+                            ue_idx = int(ue_idx) 
+                        if is_empty(ue, ue_idx) == 0 :
+                            #create an empty config dictionary for ue_idx                     
+                            ue[ue_idx] = {}
+                        ue[ue_idx][value2] = value
+                    else:
+                        auxInfo[key] = value                
+    return caseInfo, sysInfo, ue, chcfg, auxInfo    
+
+def is_empty(dictionary, key):
+    # Check if the key exists and if the value is considered "empty"
+    if key in dictionary:
+        return True
+    return False
+
+def fft_size_return(n):
+    if n <= 1:
+        return 1    
+    if n >= 0.85*2**math.ceil(math.log2(n)):
+        return 2**(math.ceil(math.log2(n))+1)
+    else:
+        return 2 ** math.ceil(math.log2(n))
     
-#     # Reload all submodules
-#     importlib.reload(sionna.utils)
-#     importlib.reload(sionna.channel)
-#     importlib.reload(sionna.nr)
-#     importlib.reload(sionna.mimo)
-#     importlib.reload(sionna.mapping)
-#     importlib.reload(sionna.ofdm)
-#     importlib.reload(sionna.fec.ldpc.encoding)
-#     importlib.reload(sionna.fec.ldpc.decoding)
-#     importlib.reload(sionna.channel.tr38901)
-
-#     # Optionally reload other relevant parts
-#     # importlib.reload(sionna.utils)  # If you're using utility functions
-#     # importlib.reload(sionna.channel.utils)  # If you're using channel utilities
-#     # importlib.reload(sionna.nr.PUSCHConfig)  # Specific submodule
-
-#     print("Sionna package and its submodules have been reset.")
+# def cp_length_return(slot, numerology, cp_type):
+#     kappa = 64
+#     if cp_type == "extended":
+#         return 512 * kappa * (2 ** -numerology)
+#     elif cp_type == "normal":
+#         if slot == 0 or slot == (7 * (2 ** numerology)):
+#             return 144 * kappa * (2 ** -numerology) + 16 * kappa
+#         else:
+#             return 144 * kappa * (2 ** -numerology)
 
 def create_timestamped_folders(base_path="/workspaces/sionna/data"):
     # Get current date and time

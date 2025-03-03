@@ -186,9 +186,9 @@ class LDPC5GEncoder(Layer):
             print(f"Warning: effective coderate r>948/1024 for n={n}, k={k}.")
         if self._coderate>(0.95): # as specified in 38.212 5.4.2.1
             raise ValueError(f"Unsupported coderate (r>0.95) for n={n}, k={k}.")
-        if self._coderate<(1/5):
-            # outer rep. coding currently not supported
-            raise ValueError("Unsupported coderate (r<1/5).")
+        # if self._coderate<(1/5):
+        #     # outer rep. coding currently not supported
+        #     raise ValueError("Unsupported coderate (r<1/5).")
 
         # construct the basegraph according to 38.212
         self._bg = self._sel_basegraph(self._k, self._coderate)
