@@ -1,3 +1,8 @@
+*.h5
+Neural_Receiver-for-PUSCH-5GNR
+*.pkl
+model.*
+*.rar
 .venv
 Pusch_data
 Checkpoint
