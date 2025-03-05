@@ -11,6 +11,7 @@ from sionna.utils import BinarySource
 import tensorflow as tf
 import numpy as np
 import pickle
+import h5py
 
 from tensorflow.keras.layers import Layer, Conv2D, LayerNormalization, SeparableConv2D
 from tensorflow.nn import relu
@@ -319,11 +320,12 @@ class MySimulator():
         self.Mimo_Detector = LinearDetector("lmmse", "bit", "maxlog", self.Resource_Grid_Mapper._resource_grid, stream_management,
                                     "qam", self.pusch_config.tb.num_bits_per_symbol, dtype=tf.complex64)
 
-    def sim(self, batch_size, channel_model, no_scaling, from_binary_source=True, gen_seed=2004*10+4):
-        if from_binary_source:
-            b = self.Binary_Source([batch_size, self.Num_tx, self.tb_size])
+    def sim(self, batch_size, channel_model, no_scaling, gen_prng_seq=None, return_channel=False):
+        if gen_prng_seq:
+            b = tf.reshape(tf.constant(generate_prng_seq(batch_size * self.Num_tx * self.tb_size, gen_prng_seq), dtype=tf.float32), [batch_size, self.Num_tx, self.tb_size])
         else:
-            b = tf.reshape(tf.constant(generate_prng_seq(batch_size * self.Num_tx * self.tb_size, gen_seed), dtype=tf.float32), [batch_size, self.Num_tx, self.tb_size])
+            b = self.Binary_Source([batch_size, self.Num_tx, self.tb_size])
+
         c = self.TB_Encoder(b)
         x_map = self.Constellation_Mapper(c)
         x_layer = self.Layer_Mapper(x_map)
@@ -333,12 +335,29 @@ class MySimulator():
         no = no_scaling * tf.math.reduce_variance(y)
 
         y = self.AWGN([y, no])
+
+        if return_channel:
+            if gen_prng_seq:
+                return b, c, y, x, h
+            return b, c, y, h
         
+        if gen_prng_seq:
+            return b, c, y, x
         return b, c, y
+        
     
     def rec(self, y):
         no_ = 0.001
         h_hat, err_var = self.Channel_Estimator([y, no_])
+        llr_det = self.Mimo_Detector([y, h_hat, err_var, no_])
+        llr_layer = self.Layer_Demapper(llr_det)
+        b_hat, tb_crc_status = self.TB_Decode(llr_layer)
+
+        return b_hat, llr_det, tb_crc_status
+    
+    def per(self, y, h, no):
+        no_ = no
+        h_hat, err_var = h, 0.
         llr_det = self.Mimo_Detector([y, h_hat, err_var, no_])
         llr_layer = self.Layer_Demapper(llr_det)
         b_hat, tb_crc_status = self.TB_Decode(llr_layer)
@@ -554,7 +573,7 @@ PuschRecord = namedtuple("PuschRecord", [
     "nPortIndex", "nNid", "nSCID", "nNIDnSCID", "nNrOfAntennaPorts",
     "nVRBtoPRB", "nPMI", "nStartSymbolIndex", "nNrOfSymbols", "nResourceAllocType",
     "nRBStart", "nRBSize", "nTBSize", "nRV", "nHARQID", "nNDI", "nMappingType",
-    "nDMRSConfigType", "nNrOfCDMs", "nNrOfDMRSSymbols", "nDMRSAddPos",
+    "nDMRSTypeAPos", "nDMRSConfigType", "nNrOfCDMs", "nNrOfDMRSSymbols", "nDMRSAddPos",
     "nPTRSPresent", "nAck", "nAlphaScaling", "nBetaOffsetACKIndex", "nCsiPart1",
     "nBetaOffsetCsiPart1Index", "nCsiPart2", "nBetaOffsetCsiPart2Index",
     "nTpPi2BPSK", "nTPPuschID", "nRxRUIdx", "nUE", "nPduIdx",
@@ -582,3 +601,23 @@ def save_hdf5(data, parent_name, group_name):
         hf.create_dataset(f"{group_name}_b", data=b.numpy())
         hf.create_dataset(f"{group_name}_c", data=c.numpy())
         hf.create_dataset(f"{group_name}_y", data=y.numpy())
+
+
+def load_hdf5(parent_name, group_name):
+    with h5py.File(f'{parent_name}.hdf5', "r") as f:
+        b = f[f"{group_name}_b"][:]
+        c = f[f"{group_name}_c"][:]
+        y = f[f"{group_name}_y"][:]
+    return b, c, y
+
+def load_pickle(parent_name, group_name):
+    """Saves data to a pickle file."""
+    def load_from_pickle(filename):
+        with open(filename, "rb") as f:
+            return pickle.load(f)
+
+    b = load_from_pickle(f'{parent_name}/{group_name}.b.pkl')
+    c = load_from_pickle(f'{parent_name}/{group_name}.c.pkl')
+    y = load_from_pickle(f'{parent_name}/{group_name}.y.pkl')
+
+    return b, c, y
