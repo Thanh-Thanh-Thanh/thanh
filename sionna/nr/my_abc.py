@@ -83,7 +83,8 @@ class MyConfig:
     Carrier_frequency: float = 2.55e9  # Carrier frequency in Hz
 
 class MyPUSCHConfig(PUSCHConfig):
-    def __init__(self, My_Config: MyConfig):
+    def __init__(self, My_Config: MyConfig, slot_number=4, frame_number=0):
+        assert My_Config.Ue[0].NLayers == 1
         self.My_Config = My_Config
         super().__init__(
             carrier_config=CarrierConfig(
@@ -92,8 +93,8 @@ class MyPUSCHConfig(PUSCHConfig):
                 subcarrier_spacing=15*(2**My_Config.Sys.Numerology),
                 n_size_grid=My_Config.Sys.BwpNRb,
                 n_start_grid=My_Config.Sys.BwpRbOffset,
-                slot_number=4,
-                frame_number=0
+                slot_number=slot_number,
+                frame_number=frame_number
             ),
             pusch_dmrs_config=PUSCHDMRSConfig(
                 config_type=My_Config.Ue[0].DmrsConfigurationType + 1,
@@ -306,19 +307,35 @@ class MySimulator():
         
     def update_pilots(self, pilots):
         self.Resource_Grid_Mapper._resource_grid.pilot_pattern.pilots = pilots
+        """Channel Estimationand Detection will reflect this update since they reference the same object."""
 
-        self.Channel_Estimator = PUSCHLSChannelEstimator(
-                        self.Resource_Grid_Mapper._resource_grid,
-                        self.pusch_config.dmrs.length,
-                        self.pusch_config.dmrs.additional_position,
-                        self.pusch_config.dmrs.num_cdm_groups_without_data,
-                        interpolation_type='nn',
-                        dtype=tf.complex64)
+        # self.Channel_Estimator = PUSCHLSChannelEstimator(
+        #                 self.Resource_Grid_Mapper._resource_grid,
+        #                 self.pusch_config.dmrs.length,
+        #                 self.pusch_config.dmrs.additional_position,
+        #                 self.pusch_config.dmrs.num_cdm_groups_without_data,
+        #                 interpolation_type='nn',
+        #                 dtype=tf.complex64)
 
-        rxtx_association = np.ones([self.Num_rx, self.Num_tx], bool)
-        stream_management = StreamManagement(rxtx_association, self.pusch_config.num_layers)
-        self.Mimo_Detector = LinearDetector("lmmse", "bit", "maxlog", self.Resource_Grid_Mapper._resource_grid, stream_management,
-                                    "qam", self.pusch_config.tb.num_bits_per_symbol, dtype=tf.complex64)
+        # rxtx_association = np.ones([self.Num_rx, self.Num_tx], bool)
+        # stream_management = StreamManagement(rxtx_association, self.pusch_config.num_layers)
+        # self.Mimo_Detector = LinearDetector("lmmse", "bit", "maxlog", self.Resource_Grid_Mapper._resource_grid, stream_management,
+        #                             "qam", self.pusch_config.tb.num_bits_per_symbol, dtype=tf.complex64)
+        
+    # def update_pilots_for_rec(self, pilots):
+    #     self.update_pilots(pilots)
+    #     self.Channel_Estimator = PUSCHLSChannelEstimator(
+    #                     self.Resource_Grid_Mapper._resource_grid,
+    #                     self.pusch_config.dmrs.length,
+    #                     self.pusch_config.dmrs.additional_position,
+    #                     self.pusch_config.dmrs.num_cdm_groups_without_data,
+    #                     interpolation_type='nn',
+    #                     dtype=tf.complex64)
+
+    #     rxtx_association = np.ones([self.Num_rx, self.Num_tx], bool)
+    #     stream_management = StreamManagement(rxtx_association, self.pusch_config.num_layers)
+    #     self.Mimo_Detector = LinearDetector("lmmse", "bit", "maxlog", self.Resource_Grid_Mapper._resource_grid, stream_management,
+    #                                 "qam", self.pusch_config.tb.num_bits_per_symbol, dtype=tf.complex64)
 
     def sim(self, batch_size, channel_model, no_scaling, gen_prng_seq=None, return_channel=False):
         if gen_prng_seq:
@@ -566,7 +583,7 @@ def fft_size_return(n):
     
 
 
-PuschRecord = namedtuple("PuschRecord", [
+PuschRecord = namedtuple("PuschRecord", [ "nPhyCellId",
     "nSFN", "nSlot", "nPDU", "nGroup", "nUlsch", "nUlcch", "nRachPresent",
     "nRNTI", "nUEId", "nBWPSize", "nBWPStart", "nSubcSpacing", "nCpType", "nULType",
     "nMcsTable", "nMCS", "nTransPrecode", "nTransmissionScheme", "nNrOfLayers",
@@ -621,3 +638,120 @@ def load_pickle(parent_name, group_name):
     y = load_from_pickle(f'{parent_name}/{group_name}.y.pkl')
 
     return b, c, y
+
+
+# class ResidualBlock(tf.keras.Model):
+#     r"""
+#     This Keras layer implements a convolutional residual block made of two convolutional layers with ReLU activation, layer normalization, and a skip connection.
+#     The number of convolutional channels of the input must match the number of kernel of the convolutional layers ``num_conv_channel`` for the skip connection to work.
+
+#     Input
+#     ------
+#     : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
+#     Input of the layer
+
+#     Output
+#     -------
+#     : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
+#     Output of the layer
+#     """
+
+#     def build(self, input_shape):
+#         self._layer_norm_1 = LayerNormalization(axis=[-1,-2,-3])
+#         self._conv_1 = Conv2D(filters= 128,
+#             kernel_size=[3,3],
+#             padding='same',
+#             activation=None)
+
+#         self._layer_norm_2 = LayerNormalization(axis=[-1,-2,-3])
+#         self._conv_2 = Conv2D(filters= 128,
+#             kernel_size=[3,3],
+#             padding='same',
+#             activation=None)
+
+#     def call(self, inputs):
+#         z = self._layer_norm_1(inputs)
+#         z = relu(z)
+#         z = self._conv_1(z)
+#         z = self._layer_norm_2(z)
+#         z = relu(z)
+#         z = self._conv_2(z) # [batch size, num time samples, num subcarriers, num_channels]
+#         # Skip connection
+#         z = z + inputs
+
+#         return z
+
+# class CustomNeuralReceiver(tf.keras.Model):
+#     r"""
+#     Keras layer implementing a residual convolutional neural receiver.
+
+#     This neural receiver is fed with the post-DFT received samples, forming a resource grid of size num_of_symbols x fft_size, and computes LLRs on the transmitted coded bits.
+#     These LLRs can then be fed to an outer decoder to reconstruct the information bits.
+
+#     Input
+#     ------
+#     y_no: [batch size, num ofdm symbols, num subcarriers, 2*num rx antenna + 1], tf.float32
+#     Concatenated received samples and noise variance.
+#     (
+#     y : [batch size, num rx antenna, num ofdm symbols, num subcarriers], tf.complex
+#     Received post-DFT samples.
+
+#     no : [batch size], tf.float32
+#     Noise variance. At training, a different noise variance value is sampled for each batch example.
+#     )
+#     Output
+#     -------
+#     : [batch size, num ofdm symbols, num subcarriers, num_bits_per_symbol]
+#     LLRs on the transmitted bits.
+#     """
+
+#     def __init__(self, training = False):
+#         super(CustomNeuralReceiver, self).__init__()
+#         self._training = training
+
+#     def build(self, input_shape):
+
+#         # Input convolution
+#         self._input_conv = Conv2D(filters= 128,
+#         kernel_size=[3,3],
+#         padding='same',
+#         activation=None)
+#         # Residual blocks
+#         self._res_block_1 = ResidualBlock()
+#         self._res_block_2 = ResidualBlock()
+#         self._res_block_3 = ResidualBlock()
+#         self._res_block_4 = ResidualBlock()
+#         # Output conv
+#         self._output_conv = Conv2D(filters= 2, # QPSK
+#         kernel_size=[3,3],
+#         padding='same',
+#         activation=None)
+
+#     def call(self, inputs):
+#         # Input conv
+#         if self._training == False:
+#             padding_size = (-inputs.shape[1] % 48)
+#             if(padding_size != 0):
+#                 padded_input_size = inputs.shape[1] + padding_size
+#                 inputs = tf.concat([inputs, inputs[:,:padding_size,]],axis=1)
+#                 inputs = tf.reshape(inputs, [-1,48,14,16])
+
+#         z = self._input_conv(inputs)
+#         # Residual blocks
+#         z = self._res_block_1(z)
+#         z = self._res_block_2(z)
+#         z = self._res_block_3(z)
+#         z = self._res_block_4(z)
+#         # Output conv
+#         z = self._output_conv(z)
+
+#         if self._training == False:
+#             if padding_size != 0:
+#                 z = tf.reshape(z, [-1,padded_input_size,14,2])
+#                 z = z[:,:-(padding_size),]
+
+
+#         z = tf.concat([z[...,0:3,:],z[...,4:11,:], z[...,12:14,:]],axis=-2)
+#         z = tf.transpose(z, perm=[0,2,1,3])
+#         z = tf.reshape(z, [z.shape[0],(z.shape[1]*z.shape[2]*z.shape[3])])
+#         return z
