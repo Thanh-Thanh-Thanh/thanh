@@ -84,6 +84,7 @@ class MyConfig:
 
 class MyPUSCHConfig(PUSCHConfig):
     def __init__(self, My_Config: MyConfig, slot_number=4, frame_number=0):
+        assert len(My_Config.Ue) == 1, "only suppport 1"
         assert My_Config.Ue[0].NLayers == 1
         self.My_Config = My_Config
         super().__init__(
@@ -123,6 +124,17 @@ class MyPUSCHConfig(PUSCHConfig):
             n_rnti=My_Config.Ue[0].Rnti,
             symbol_allocation=[My_Config.Ue[0].FirstSymb,My_Config.Ue[0].NPuschSymbAll]
         )
+
+    @property
+    def phy_cell_id(self):
+        return self._carrier._n_cell_id
+    
+    @phy_cell_id.setter
+    def phy_cell_id(self, value):
+        self.carrier._n_cell_id = value
+        self.tb._n_id = value
+        self.dmrs._n_id = value
+
     @property
     def first_resource_block(self):
         """
@@ -385,110 +397,110 @@ class MySimulator():
 
 
 
-class ResidualBlock(tf.keras.Model):
-    r"""
-    This Keras layer implements a convolutional residual block made of two convolutional layers with ReLU activation, layer normalization, and a skip connection.
-    The number of convolutional channels of the input must match the number of kernel of the convolutional layers ``num_conv_channel`` for the skip connection to work.
+# class ResidualBlock(tf.keras.Model):
+#     r"""
+#     This Keras layer implements a convolutional residual block made of two convolutional layers with ReLU activation, layer normalization, and a skip connection.
+#     The number of convolutional channels of the input must match the number of kernel of the convolutional layers ``num_conv_channel`` for the skip connection to work.
 
-    Input
-    ------
-    : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
-        Input of the layer
+#     Input
+#     ------
+#     : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
+#         Input of the layer
 
-    Output
-    -------
-    : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
-        Output of the layer
-    """
+#     Output
+#     -------
+#     : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
+#         Output of the layer
+#     """
 
-    def build(self, input_shape):
+#     def build(self, input_shape):
 
-        # Layer normalization is done over the last three dimensions: time, frequency, conv 'channels'
-        self._layer_norm_1 = LayerNormalization(axis=(-1, -2, -3))
-        self._conv_1 = SeparableConv2D(filters= 64,
-                              kernel_size=[3,3],
-                              padding='same',
-                              activation=None)
-        # Layer normalization is done over the last three dimensions: time, frequency, conv 'channels'
-        self._layer_norm_2 = LayerNormalization(axis=(-1, -2, -3))
-        self._conv_2 = SeparableConv2D(filters= 128,
-                              kernel_size=[3,3],
-                              padding='same',
-                              activation=None)
+#         # Layer normalization is done over the last three dimensions: time, frequency, conv 'channels'
+#         self._layer_norm_1 = LayerNormalization(axis=(-1, -2, -3))
+#         self._conv_1 = SeparableConv2D(filters= 64,
+#                               kernel_size=[3,3],
+#                               padding='same',
+#                               activation=None)
+#         # Layer normalization is done over the last three dimensions: time, frequency, conv 'channels'
+#         self._layer_norm_2 = LayerNormalization(axis=(-1, -2, -3))
+#         self._conv_2 = SeparableConv2D(filters= 128,
+#                               kernel_size=[3,3],
+#                               padding='same',
+#                               activation=None)
 
-    def call(self, inputs):
-        z = self._layer_norm_1(inputs)
-        z = relu(z)
-        z = self._conv_1(z)
-        z = self._layer_norm_2(z)
-        z = relu(z)
-        z = self._conv_2(z) # [batch size, num time samples, num subcarriers, num_channels]
-        # Skip connection
-        z = z + inputs
+#     def call(self, inputs):
+#         z = self._layer_norm_1(inputs)
+#         z = relu(z)
+#         z = self._conv_1(z)
+#         z = self._layer_norm_2(z)
+#         z = relu(z)
+#         z = self._conv_2(z) # [batch size, num time samples, num subcarriers, num_channels]
+#         # Skip connection
+#         z = z + inputs
 
-        return z
+#         return z
 
-class CustomNeuralReceiver(tf.keras.Model):
-    r"""
-    Keras layer implementing a residual convolutional neural receiver.
+# class CustomNeuralReceiver(tf.keras.Model):
+#     r"""
+#     Keras layer implementing a residual convolutional neural receiver.
 
-    This neural receiver is fed with the post-DFT received samples, forming a resource grid of size num_of_symbols x fft_size, and computes LLRs on the transmitted coded bits.
-    These LLRs can then be fed to an outer decoder to reconstruct the information bits.
+#     This neural receiver is fed with the post-DFT received samples, forming a resource grid of size num_of_symbols x fft_size, and computes LLRs on the transmitted coded bits.
+#     These LLRs can then be fed to an outer decoder to reconstruct the information bits.
 
-    Input
-    ------
-    y_no: [batch size, num ofdm symbols, num subcarriers, 2*num rx antenna + 1], tf.float32
-        Concatenated received samples and noise variance.
-(
-    y : [batch size, num rx antenna, num ofdm symbols, num subcarriers], tf.complex
-        Received post-DFT samples.
+#     Input
+#     ------
+#     y_no: [batch size, num ofdm symbols, num subcarriers, 2*num rx antenna + 1], tf.float32
+#         Concatenated received samples and noise variance.
+# (
+#     y : [batch size, num rx antenna, num ofdm symbols, num subcarriers], tf.complex
+#         Received post-DFT samples.
 
-    no : [batch size], tf.float32
-        Noise variance. At training, a different noise variance value is sampled for each batch example.
-)
-    Output
-    -------
-    : [batch size, num ofdm symbols, num subcarriers, num_bits_per_symbol]
-        LLRs on the transmitted bits.
-    """
+#     no : [batch size], tf.float32
+#         Noise variance. At training, a different noise variance value is sampled for each batch example.
+# )
+#     Output
+#     -------
+#     : [batch size, num ofdm symbols, num subcarriers, num_bits_per_symbol]
+#         LLRs on the transmitted bits.
+#     """
 
-    def __init__(self, training = False):
-        super(CustomNeuralReceiver, self).__init__()
-        self._training = training
+#     def __init__(self, training = False):
+#         super(CustomNeuralReceiver, self).__init__()
+#         self._training = training
 
-    def build(self, input_shape):
+#     def build(self, input_shape):
 
-        # Input convolution
-        self._input_conv = Conv2D(filters= 128,
-                                  kernel_size=[3,3],
-                                  padding='same',
-                                  activation=None)
-        # Residual blocks
-        self._res_block_1 = ResidualBlock()
-        self._res_block_2 = ResidualBlock()
-        self._res_block_3 = ResidualBlock()
-        self._res_block_4 = ResidualBlock()
-        # Output conv
-        self._output_conv = Conv2D(filters= 2,    # QPSK
-                                   kernel_size=[3,3],
-                                   padding='same',
-                                   activation=None)
+#         # Input convolution
+#         self._input_conv = Conv2D(filters= 128,
+#                                   kernel_size=[3,3],
+#                                   padding='same',
+#                                   activation=None)
+#         # Residual blocks
+#         self._res_block_1 = ResidualBlock()
+#         self._res_block_2 = ResidualBlock()
+#         self._res_block_3 = ResidualBlock()
+#         self._res_block_4 = ResidualBlock()
+#         # Output conv
+#         self._output_conv = Conv2D(filters= 2,    # QPSK
+#                                    kernel_size=[3,3],
+#                                    padding='same',
+#                                    activation=None)
         
 
-    @tf.function(jit_compile=True)
-    def call(self, inputs):
-        # Input conv
-        z = self._input_conv(inputs)
-        # Residual blocks
-        z = self._res_block_1(z)
-        z = self._res_block_2(z)
-        z = self._res_block_3(z)
-        z = self._res_block_4(z)
-        # Output conv
-        z = self._output_conv(z)
-        # if self._training == False:
-        #     z = tf.cast(z * (2**7), tf.int8)
-        return z
+#     @tf.function(jit_compile=True)
+#     def call(self, inputs):
+#         # Input conv
+#         z = self._input_conv(inputs)
+#         # Residual blocks
+#         z = self._res_block_1(z)
+#         z = self._res_block_2(z)
+#         z = self._res_block_3(z)
+#         z = self._res_block_4(z)
+#         # Output conv
+#         z = self._output_conv(z)
+#         # if self._training == False:
+#         #     z = tf.cast(z * (2**7), tf.int8)
+#         return z
     
 
 def load_weights(model, pretrained_weights_path):
@@ -596,7 +608,6 @@ PuschRecord = namedtuple("PuschRecord", [ "nPhyCellId",
     "nTpPi2BPSK", "nTPPuschID", "nRxRUIdx", "nUE", "nPduIdx",
 
     # New fields for channel and filenames
-    "Dmrs_mask",
     "Channel_model", "Speed", "Delay_spread", "Esno_db",
     "Data_filename","Data_dirname"
     ]
@@ -607,17 +618,19 @@ def save_pickle(data, parent_name, group_name):
     def save_to_pickle(data, filename):
         with open(filename, "wb") as f:
             pickle.dump(data, f)
-    b, c, y = data
+    b, c, y, r = data
     save_to_pickle(b.numpy(), f'{parent_name}/{group_name}.b.pkl')
     save_to_pickle(c.numpy(), f'{parent_name}/{group_name}.c.pkl')
     save_to_pickle(y.numpy(), f'{parent_name}/{group_name}.y.pkl')
+    save_to_pickle(r.numpy(), f'{parent_name}/{group_name}.r.pkl')
 
 def save_hdf5(data, parent_name, group_name):
-    b, c, y = data
+    b, c, y, r = data
     with h5py.File(f"{parent_name}.hdf5", "a") as hf:
         hf.create_dataset(f"{group_name}_b", data=b.numpy())
         hf.create_dataset(f"{group_name}_c", data=c.numpy())
         hf.create_dataset(f"{group_name}_y", data=y.numpy())
+        hf.create_dataset(f"{group_name}_r", data=r.numpy())
 
 
 def load_hdf5(parent_name, group_name):
@@ -625,7 +638,8 @@ def load_hdf5(parent_name, group_name):
         b = f[f"{group_name}_b"][:]
         c = f[f"{group_name}_c"][:]
         y = f[f"{group_name}_y"][:]
-    return b, c, y
+        r = f[f"{group_name}_r"][:]
+    return b, c, y, r
 
 def load_pickle(parent_name, group_name):
     """Saves data to a pickle file."""
@@ -636,122 +650,123 @@ def load_pickle(parent_name, group_name):
     b = load_from_pickle(f'{parent_name}/{group_name}.b.pkl')
     c = load_from_pickle(f'{parent_name}/{group_name}.c.pkl')
     y = load_from_pickle(f'{parent_name}/{group_name}.y.pkl')
+    r = load_from_pickle(f'{parent_name}/{group_name}.r.pkl')
 
-    return b, c, y
-
-
-# class ResidualBlock(tf.keras.Model):
-#     r"""
-#     This Keras layer implements a convolutional residual block made of two convolutional layers with ReLU activation, layer normalization, and a skip connection.
-#     The number of convolutional channels of the input must match the number of kernel of the convolutional layers ``num_conv_channel`` for the skip connection to work.
-
-#     Input
-#     ------
-#     : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
-#     Input of the layer
-
-#     Output
-#     -------
-#     : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
-#     Output of the layer
-#     """
-
-#     def build(self, input_shape):
-#         self._layer_norm_1 = LayerNormalization(axis=[-1,-2,-3])
-#         self._conv_1 = Conv2D(filters= 128,
-#             kernel_size=[3,3],
-#             padding='same',
-#             activation=None)
-
-#         self._layer_norm_2 = LayerNormalization(axis=[-1,-2,-3])
-#         self._conv_2 = Conv2D(filters= 128,
-#             kernel_size=[3,3],
-#             padding='same',
-#             activation=None)
-
-#     def call(self, inputs):
-#         z = self._layer_norm_1(inputs)
-#         z = relu(z)
-#         z = self._conv_1(z)
-#         z = self._layer_norm_2(z)
-#         z = relu(z)
-#         z = self._conv_2(z) # [batch size, num time samples, num subcarriers, num_channels]
-#         # Skip connection
-#         z = z + inputs
-
-#         return z
-
-# class CustomNeuralReceiver(tf.keras.Model):
-#     r"""
-#     Keras layer implementing a residual convolutional neural receiver.
-
-#     This neural receiver is fed with the post-DFT received samples, forming a resource grid of size num_of_symbols x fft_size, and computes LLRs on the transmitted coded bits.
-#     These LLRs can then be fed to an outer decoder to reconstruct the information bits.
-
-#     Input
-#     ------
-#     y_no: [batch size, num ofdm symbols, num subcarriers, 2*num rx antenna + 1], tf.float32
-#     Concatenated received samples and noise variance.
-#     (
-#     y : [batch size, num rx antenna, num ofdm symbols, num subcarriers], tf.complex
-#     Received post-DFT samples.
-
-#     no : [batch size], tf.float32
-#     Noise variance. At training, a different noise variance value is sampled for each batch example.
-#     )
-#     Output
-#     -------
-#     : [batch size, num ofdm symbols, num subcarriers, num_bits_per_symbol]
-#     LLRs on the transmitted bits.
-#     """
-
-#     def __init__(self, training = False):
-#         super(CustomNeuralReceiver, self).__init__()
-#         self._training = training
-
-#     def build(self, input_shape):
-
-#         # Input convolution
-#         self._input_conv = Conv2D(filters= 128,
-#         kernel_size=[3,3],
-#         padding='same',
-#         activation=None)
-#         # Residual blocks
-#         self._res_block_1 = ResidualBlock()
-#         self._res_block_2 = ResidualBlock()
-#         self._res_block_3 = ResidualBlock()
-#         self._res_block_4 = ResidualBlock()
-#         # Output conv
-#         self._output_conv = Conv2D(filters= 2, # QPSK
-#         kernel_size=[3,3],
-#         padding='same',
-#         activation=None)
-
-#     def call(self, inputs):
-#         # Input conv
-#         if self._training == False:
-#             padding_size = (-inputs.shape[1] % 48)
-#             if(padding_size != 0):
-#                 padded_input_size = inputs.shape[1] + padding_size
-#                 inputs = tf.concat([inputs, inputs[:,:padding_size,]],axis=1)
-#                 inputs = tf.reshape(inputs, [-1,48,14,16])
-
-#         z = self._input_conv(inputs)
-#         # Residual blocks
-#         z = self._res_block_1(z)
-#         z = self._res_block_2(z)
-#         z = self._res_block_3(z)
-#         z = self._res_block_4(z)
-#         # Output conv
-#         z = self._output_conv(z)
-
-#         if self._training == False:
-#             if padding_size != 0:
-#                 z = tf.reshape(z, [-1,padded_input_size,14,2])
-#                 z = z[:,:-(padding_size),]
+    return b, c, y, r
 
 
-#         z = tf.concat([z[...,0:3,:],z[...,4:11,:], z[...,12:14,:]],axis=-2)
-#         z = tf.transpose(z, perm=[0,2,1,3])
-#         z = tf.reshape(z, [z.shape[0],(z.shape[1]*z.shape[2]*z.shape[3])])
-#         return z
+class ResidualBlock(tf.keras.Model):
+    r"""
+    This Keras layer implements a convolutional residual block made of two convolutional layers with ReLU activation, layer normalization, and a skip connection.
+    The number of convolutional channels of the input must match the number of kernel of the convolutional layers ``num_conv_channel`` for the skip connection to work.
+
+    Input
+    ------
+    : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
+    Input of the layer
+
+    Output
+    -------
+    : [batch size, num time samples, num subcarriers, num_conv_channel], tf.float
+    Output of the layer
+    """
+
+    def build(self, input_shape):
+        self._layer_norm_1 = LayerNormalization(axis=[-1,-2,-3])
+        self._conv_1 = Conv2D(filters= 128,
+            kernel_size=[3,3],
+            padding='same',
+            activation=None)
+
+        self._layer_norm_2 = LayerNormalization(axis=[-1,-2,-3])
+        self._conv_2 = Conv2D(filters= 128,
+            kernel_size=[3,3],
+            padding='same',
+            activation=None)
+
+    def call(self, inputs):
+        z = self._layer_norm_1(inputs)
+        z = relu(z)
+        z = self._conv_1(z)
+        z = self._layer_norm_2(z)
+        z = relu(z)
+        z = self._conv_2(z) # [batch size, num time samples, num subcarriers, num_channels]
+        # Skip connection
+        z = z + inputs
+
+        return z
+
+class CustomNeuralReceiver(tf.keras.Model):
+    r"""
+    Keras layer implementing a residual convolutional neural receiver.
+
+    This neural receiver is fed with the post-DFT received samples, forming a resource grid of size num_of_symbols x fft_size, and computes LLRs on the transmitted coded bits.
+    These LLRs can then be fed to an outer decoder to reconstruct the information bits.
+
+    Input
+    ------
+    y_no: [batch size, num ofdm symbols, num subcarriers, 2*num rx antenna + 1], tf.float32
+    Concatenated received samples and noise variance.
+    (
+    y : [batch size, num rx antenna, num ofdm symbols, num subcarriers], tf.complex
+    Received post-DFT samples.
+
+    no : [batch size], tf.float32
+    Noise variance. At training, a different noise variance value is sampled for each batch example.
+    )
+    Output
+    -------
+    : [batch size, num ofdm symbols, num subcarriers, num_bits_per_symbol]
+    LLRs on the transmitted bits.
+    """
+
+    def __init__(self, training = False):
+        super(CustomNeuralReceiver, self).__init__()
+        self._training = training
+
+    def build(self, input_shape):
+
+        # Input convolution
+        self._input_conv = Conv2D(filters= 128,
+        kernel_size=[3,3],
+        padding='same',
+        activation=None)
+        # Residual blocks
+        self._res_block_1 = ResidualBlock()
+        self._res_block_2 = ResidualBlock()
+        self._res_block_3 = ResidualBlock()
+        self._res_block_4 = ResidualBlock()
+        # Output conv
+        self._output_conv = Conv2D(filters= 2, # QPSK
+        kernel_size=[3,3],
+        padding='same',
+        activation=None)
+
+    def call(self, inputs):
+        # Input conv
+        if self._training == False:
+            padding_size = (-inputs.shape[1] % 48)
+            if(padding_size != 0):
+                padded_input_size = inputs.shape[1] + padding_size
+                inputs = tf.concat([inputs, inputs[:,:padding_size,]],axis=1)
+                inputs = tf.reshape(inputs, [-1,48,14,16])
+
+        z = self._input_conv(inputs)
+        # Residual blocks
+        z = self._res_block_1(z)
+        z = self._res_block_2(z)
+        z = self._res_block_3(z)
+        z = self._res_block_4(z)
+        # Output conv
+        z = self._output_conv(z)
+
+        if self._training == False:
+            if padding_size != 0:
+                z = tf.reshape(z, [-1,padded_input_size,14,2])
+                z = z[:,:-(padding_size),]
+
+
+        z = tf.concat([z[...,0:3,:],z[...,4:11,:], z[...,12:14,:]],axis=-2)
+        z = tf.transpose(z, perm=[0,2,1,3])
+        z = tf.reshape(z, [z.shape[0],(z.shape[1]*z.shape[2]*z.shape[3])])
+        return z
