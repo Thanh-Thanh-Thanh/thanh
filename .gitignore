@@ -1,4 +1,5 @@
 *.h5
+*/*.txt
 273_RB_hdf5_data
 Neural_Receiver-for-PUSCH-5GNR
 *.pkl
@@ -37,3 +38,5 @@ nohup.out
 /*.obj
 dist/
 sionna/system/data
+test.zip
+test.zip

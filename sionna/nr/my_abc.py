@@ -84,7 +84,7 @@ class MyConfig:
 
 class MyPUSCHConfig(PUSCHConfig):
     def __init__(self, My_Config: MyConfig, slot_number=4, frame_number=0):
-        assert len(My_Config.Ue) == 1, "only suppport 1"
+        # assert len(My_Config.Ue) == 1, "only suppport 1"
         assert My_Config.Ue[0].NLayers == 1
         self.My_Config = My_Config
         super().__init__(
@@ -321,34 +321,6 @@ class MySimulator():
         self.Resource_Grid_Mapper._resource_grid.pilot_pattern.pilots = pilots
         """Channel Estimationand Detection will reflect this update since they reference the same object."""
 
-        # self.Channel_Estimator = PUSCHLSChannelEstimator(
-        #                 self.Resource_Grid_Mapper._resource_grid,
-        #                 self.pusch_config.dmrs.length,
-        #                 self.pusch_config.dmrs.additional_position,
-        #                 self.pusch_config.dmrs.num_cdm_groups_without_data,
-        #                 interpolation_type='nn',
-        #                 dtype=tf.complex64)
-
-        # rxtx_association = np.ones([self.Num_rx, self.Num_tx], bool)
-        # stream_management = StreamManagement(rxtx_association, self.pusch_config.num_layers)
-        # self.Mimo_Detector = LinearDetector("lmmse", "bit", "maxlog", self.Resource_Grid_Mapper._resource_grid, stream_management,
-        #                             "qam", self.pusch_config.tb.num_bits_per_symbol, dtype=tf.complex64)
-        
-    # def update_pilots_for_rec(self, pilots):
-    #     self.update_pilots(pilots)
-    #     self.Channel_Estimator = PUSCHLSChannelEstimator(
-    #                     self.Resource_Grid_Mapper._resource_grid,
-    #                     self.pusch_config.dmrs.length,
-    #                     self.pusch_config.dmrs.additional_position,
-    #                     self.pusch_config.dmrs.num_cdm_groups_without_data,
-    #                     interpolation_type='nn',
-    #                     dtype=tf.complex64)
-
-    #     rxtx_association = np.ones([self.Num_rx, self.Num_tx], bool)
-    #     stream_management = StreamManagement(rxtx_association, self.pusch_config.num_layers)
-    #     self.Mimo_Detector = LinearDetector("lmmse", "bit", "maxlog", self.Resource_Grid_Mapper._resource_grid, stream_management,
-    #                                 "qam", self.pusch_config.tb.num_bits_per_symbol, dtype=tf.complex64)
-
     def sim(self, batch_size, channel_model, no_scaling, gen_prng_seq=None, return_channel=False):
         if gen_prng_seq:
             b = tf.reshape(tf.constant(generate_prng_seq(batch_size * self.Num_tx * self.tb_size, gen_prng_seq), dtype=tf.float32), [batch_size, self.Num_tx, self.tb_size])
@@ -375,14 +347,13 @@ class MySimulator():
         return b, c, y
         
     
-    def rec(self, y):
-        no_ = 0.001
+    def rec(self, y, no_ = 1e-10):
         h_hat, err_var = self.Channel_Estimator([y, no_])
         llr_det = self.Mimo_Detector([y, h_hat, err_var, no_])
         llr_layer = self.Layer_Demapper(llr_det)
         b_hat, tb_crc_status = self.TB_Decode(llr_layer)
 
-        return b_hat, llr_det, tb_crc_status
+        return h_hat, llr_det, b_hat, tb_crc_status
     
     def per(self, y, h, no):
         no_ = no
@@ -391,7 +362,7 @@ class MySimulator():
         llr_layer = self.Layer_Demapper(llr_det)
         b_hat, tb_crc_status = self.TB_Decode(llr_layer)
 
-        return b_hat, llr_det, tb_crc_status
+        return h_hat, llr_det, b_hat, tb_crc_status
 
 
 
